@@ -52,7 +52,6 @@ int main(void)
             close(fd[0]);
             //write pipe
             memset(buf, 0, sizeof(buf));
-            sleep(5);
             ret = write(fd[1], "howaylee", sizeof("howaylee"));
             printf("write finish\n");
             if(-1 == ret)
@@ -67,6 +66,7 @@ int main(void)
             //先关闭写端，以免冲突
             close(fd[1]);
             //read pipe
+            sleep(5);
             ret = read(fd[0], buf, sizeof(buf));
             printf("read finish\n");
             if(-1 == ret)
