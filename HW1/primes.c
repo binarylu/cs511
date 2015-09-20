@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 
 #ifndef PIPE_MAX
-#define PIPE_MAX 1024
+#define PIPE_MAX 255
 #endif
 
 #define NAME_BUF 256
@@ -28,56 +28,67 @@ int getPidCnt(int pid, _pidCnt *pidcnt, int length);
 
 int main(int argc, char *argv[])
 {
-    if (argc < 2) {
-        usage();
-    }
     int pid;
     int i;
     int fd[2];
-    int fdreads[PIPE_MAX];
     int childnum = 0;
-
     char fifo_name[NAME_BUF];
-    _pidCnt *pidcnt = (_pidCnt *)malloc(sizeof(_pidCnt) * (argc - 1));
+    int *fdreads;
+    _pidCnt *pidcnt;
+
+    if (argc < 2) {
+        usage();
+    } else if (argc - 1 > PIPE_MAX) {
+        fprintf(stderr, "Too many arguments, at most %d\n", PIPE_MAX);
+        exit(EXIT_FAILURE);
+    }
+
+    /* for parent process to record prime number that each child process finds */
+    pidcnt = (_pidCnt *)malloc(sizeof(_pidCnt) * (argc - 1));
+    /* for parent process to record the read file descriptor of each child process */
+    fdreads = (int *)malloc(sizeof(int) * (argc - 1));
 
     for (i = 0; i < argc - 1; ++i) {
-        if (i % 2 == 0) {
+        if (i % 2 == 0) { /* Odd-numbered child process use pipe */
             if (pipe(fd) == -1) {
                 perror("pipe failed!");
                 exit(EXIT_FAILURE);
             }
-        } else {
+        } else { /* Even-numbered child process use FIFO */
             snprintf(fifo_name, NAME_BUF, "fifo_%d", i);
             if (mkfifo(fifo_name, 0666) == -1) {
                 perror("mkfifo failed!");
                 exit(EXIT_FAILURE);
             }
         }
+
         pid = fork();
         if (pid < 0) {
             perror("fork error");
             exit(EXIT_FAILURE);
-        } else if (pid == 0) {
-            if (i % 2 == 0) {
+        } else if (pid == 0) { /* child process */
+            if (i % 2 == 0) { /* for odd-numbered child process close read pipe fd */
                 close(fd[0]);
-            } else {
+            } else { /* for even-numbered child process open a write FIFO descriptor */
                 if ((fd[1] = open(fifo_name, O_WRONLY)) == -1) {
-                    perror("open fifo failed");
+                    perror("open fifo write failed");
                     exit(EXIT_FAILURE);
                 }
+                /* remove FIFO files after parent process exiting */
                 unlink(fifo_name);
             }
-            break;
-        } else {
-            if (i % 2 == 0) {
+            break; /* avoid the child process to fork again */
+        } else { /* parent process */
+            if (i % 2 == 0) { /* parent process close the write pipe fd */
                 close(fd[1]);
                 fdreads[childnum++] = fd[0];
-            } else {
+            } else { /* parent process open a read FIFO descriptor */
                 if ((fdreads[childnum++] = open(fifo_name, O_RDONLY)) == -1) {
-                    perror("open fifo failed"); 
+                    perror("open fifo read failed"); 
                     exit(EXIT_FAILURE);
                 }
             }
+            /* initialize the prime number that each child process finds */
             pidcnt[i].pid = pid;
             pidcnt[i].count = 0;
         }
@@ -87,16 +98,23 @@ int main(int argc, char *argv[])
         perror("fork error");
         exit(EXIT_FAILURE);
     } else if (pid == 0) { /* child */
+        int ret;
         int bottom = i == 0 ? 2 : atoi(argv[i]) + 1;
         int top = atoi(argv[i + 1]);
         printf("child %d: bottom=%d, top=%d\n", getpid(), bottom, top);
-        int ret = childHandle(fd[1], bottom, top);
+
+        /* return the number of primes the child process has found */
+        ret = childHandle(fd[1], bottom, top);
+
         exit(ret);
     } else { /* parent */
-        parentHandle(fdreads, childnum, pidcnt);
         int stat;
+        parentHandle(fdreads, childnum, pidcnt);
+
+        /* wait all the child processes*/
         while((pid = wait(&stat)) > 0) { 
             if (WIFEXITED(stat)) {
+                /* verify the received exit code is indeed the number of primes that the child produced */
                 if (WEXITSTATUS(stat) == getPidCnt(pid, pidcnt, childnum)) {
                     printf("child %d exited correctly\n", pid);
                 } else {
@@ -112,6 +130,8 @@ int main(int argc, char *argv[])
 
         }
     }
+    free(pidcnt);
+    free(fdreads);
 
     return 0;
 }
@@ -121,14 +141,16 @@ int childHandle(int fd, int bottom, int top) {
     int buf[2];
     buf[0] = getpid();
     for (num = bottom; num <= top; ++num) {
-        if (isPrime(num)) {
+        if (isPrime(num)) { /* write pipe/FIFO after finding a prime */
             ++ret;
             buf[1] = num;
-            write(fd, buf, sizeof(int) * 2);
+            if (write(fd, buf, sizeof(int) * 2) == -1) {
+                perror("write");
+            }
         }
     }
     close(fd);
-    return ret;
+    return ret; /* return the prime number it has found */
 }
 
 void parentHandle(int *fdreads, int childnum, _pidCnt *pidcnt) {
@@ -154,13 +176,15 @@ void parentHandle(int *fdreads, int childnum, _pidCnt *pidcnt) {
                 int n = read(i, &buf, sizeof(int) * 2);
                 if (n < 0) {
                     perror("read");
-                } else if (n == 0) {
+                } else if (n == 0) { /* child process closes its fd */
                     close(i);
+                    /* delete this fd from the fd array */
                     fdnum = deleteFromArray(fdreads, fdnum, i);
                 } else {
                     int childid = buf[0];
                     int prime = buf[1];
                     printf("%d is prime\n", prime);
+                    /* record the prime number that each child process finds */
                     if (setPidCnt(childid, pidcnt, childnum) == -1) {
                         perror("can not find the child pid in the pidcnt");
                         exit(EXIT_FAILURE);
@@ -181,6 +205,7 @@ void usage() {
     exit(EXIT_FAILURE);
 }
 
+/* judge the num is a prime number */
 int isPrime(int num) {
     int i;
     for (i = 2; i <= num / 2; ++i) {
@@ -189,6 +214,7 @@ int isPrime(int num) {
     return 1;
 }
 
+/* delete a specified number from the array */
 int deleteFromArray(int fdreads[], int length, int fd) {
     int i, j = 0;
     int ret = length;
@@ -203,6 +229,7 @@ int deleteFromArray(int fdreads[], int length, int fd) {
     return ret;
 }
 
+/* given pid, increase its prime number count by 1 */
 int setPidCnt(int pid, _pidCnt *pidcnt, int length) {
     int i;
     for (i = 0; i < length; ++i) {
@@ -215,6 +242,7 @@ int setPidCnt(int pid, _pidCnt *pidcnt, int length) {
     return 0;
 }
 
+/* given pid, return its prime number count */
 int getPidCnt(int pid, _pidCnt *pidcnt, int length) {
     int i;
     for (i = 0; i < length; ++i) {
