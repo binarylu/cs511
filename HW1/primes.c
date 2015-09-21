@@ -1,8 +1,8 @@
 /*
  * CS511 Asxsignment #1: Practice with UNIX Process Mechanisms
- * Author: Xiakun Lu
- * Email:  xlu9@stevens.edu
- * Data:   09/21/2015
+ * Author:  Xiakun Lu
+ * Email:   xlu9@stevens.edu
+ * Data:    09/21/2015
  */
 #include <stdio.h>
 #include <stdlib.h>
