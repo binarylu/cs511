@@ -178,11 +178,11 @@ drain_func(void *argument)
     if ((line = (char *)malloc(sizeof(char) * CBUF_CAPACITY)) == NULL)
         HANDLE_ERROR("drain_thread: malloc line");
 
-    if (sem_wait(&items) == -1)
-        HANDLE_ERROR("sem_wait items");
     while (1) {
         if (usleep(sleep_time) == -1)
             HANDLE_ERROR("usleep");
+        if (sem_wait(&items) == -1)
+            HANDLE_ERROR("sem_wait items");
         if (sem_wait(&sem) == -1)
             HANDLE_ERROR("sem_wait");
 
@@ -199,9 +199,9 @@ drain_func(void *argument)
                 break;
             fwrite(line, len_copy_out - 1, 1, f);
         }
+        if (sem_post(&spaces) == -1)
+            HANDLE_ERROR("sem_post sapces");
     }
-    if (sem_post(&spaces) == -1)
-        HANDLE_ERROR("sem_post sapces");
 
     free(line);
     return (void *)ret;
