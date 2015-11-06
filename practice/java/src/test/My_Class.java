@@ -1,4 +1,4 @@
-package cs511;
+package test;
 
 public class My_Class {
 	public static void main(String argv[]) throws InterruptedException {
