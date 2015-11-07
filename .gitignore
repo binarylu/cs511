@@ -11,9 +11,10 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
-/practice/.metadata/
-/practice/RemoteSystemsTempFiles/
-/practice/java/.settings
-/practice/java/.classpath
-/practice/java/.gitignore
-/practice/java/.project
+# java
+*.metadata/
+*RemoteSystemsTempFiles/
+*.settings/
+*.classpath
+*.project
+*.recommenders/
