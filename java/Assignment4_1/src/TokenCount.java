@@ -92,7 +92,7 @@ class consumer implements Runnable {
 			while (true) {
 				Page pg = sharedQueue.take();
 				if (pg instanceof PoisonPill)
-					return;
+					break;
 				Iterable<String> allTokens = new Words(pg.getText());
 				for (String s : allTokens) {
 					Integer currentCount = tokenFreq.get(s);
