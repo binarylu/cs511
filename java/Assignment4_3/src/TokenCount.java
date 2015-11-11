@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.Map.Entry;
 
 public class TokenCount {
-    private static final HashMap<String, Integer> tokenFreq = new HashMap<String, Integer>();
+    private static final ConcurrentHashMap<String, Integer> tokenFreq = new ConcurrentHashMap<String, Integer>();
 
     public static void main(String[] args) throws Exception {
     if (args.length != 2) {
@@ -30,7 +30,6 @@ public class TokenCount {
     int numProcessors = Runtime.getRuntime().availableProcessors();
 
     ArrayBlockingQueue<Page> sharedQueue = new ArrayBlockingQueue<Page>(queueLength);
-    ConcurrentHashMap<String, Integer> tokenFreq = new ConcurrentHashMap<String, Integer>();
     ExecutorService pool = Executors.newCachedThreadPool();
 
 /* begin timed code ... */
