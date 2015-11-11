@@ -29,22 +29,16 @@ public class TokenCount {
     int numProcessors = Runtime.getRuntime().availableProcessors();
 
     ArrayBlockingQueue<Page> sharedQueue = new ArrayBlockingQueue<Page>(queueLength);
+    Thread th_producer = new Thread(new producer(sharedQueue, numPages, args[1]));
     ExecutorService pool = Executors.newCachedThreadPool();
 
 /* begin timed code ... */
     final long before = System.nanoTime();
+    th_producer.start();
     for (int i = 0; i < numProcessors - 1; ++i) {
         pool.execute(new consumer(sharedQueue, tokenFreq));
     }
-    Iterable<Page> allPages = new Pages(numPages, args[1]);
-    try {
-    	for (Page pg: allPages)
-    		sharedQueue.put(pg);
-        for (int i = 0; i < numProcessors - 1; ++i)
-        	sharedQueue.put(new PoisonPill());
-    } catch (InterruptedException e) {
-		e.printStackTrace();
-	}
+    th_producer.join();
     pool.shutdown();
     pool.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
     final long after = System.nanoTime();
@@ -66,6 +60,31 @@ public class TokenCount {
         for(int i=0; i<30; i++)
             System.out.println(list.get(i).getKey() + " appears " + list.get(i).getValue() + " times");
     }
+}
+
+class producer implements Runnable {
+    private BlockingQueue<Page> sharedQueue;
+    private String fileName;
+    private Integer numPages;
+    
+    public producer(BlockingQueue<Page> q, Integer num, String f) {
+        sharedQueue = q;
+        numPages = num;
+        fileName = f;
+	}
+
+	public void run() {
+        Iterable<Page> allPages = new Pages(numPages, fileName);
+        int numProcessors = Runtime.getRuntime().availableProcessors();
+        try {
+        	for (Page pg: allPages)
+        		sharedQueue.put(pg);
+            for (int i = 0; i < numProcessors - 1; ++i)
+            	sharedQueue.put(new PoisonPill());
+        } catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
 }
 
 class consumer implements Runnable {
