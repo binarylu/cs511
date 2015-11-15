@@ -20,3 +20,6 @@ RemoteSystemsTempFiles/
 .recommenders/
 .gitignore
 !/.gitignore
+
+*.beam
+*.dump
