@@ -35,7 +35,7 @@ watcher_loop(WatcherID, List) ->
                       io:fwrite("(~p)Sensor #~p: ~p~n", [WatcherID, SensorID, Measurement]),
                       List;
                   {'DOWN', _, process, Pid, {SensorID, Reason}} ->
-                      io:fwrite("Sensor ~p died, reason: ~p~n", [SensorID, Reason]),
+                      io:fwrite("Sensor #~p died, reason: ~p~n", [SensorID, Reason]),
                       {PID, _} = spawn_monitor(sensor, thread_sensor, [self(), SensorID]),
                       NewL = [{SensorID, PID} | lists:delete({SensorID, Pid}, List)],
                       io:fwrite("Watcher #~p new sensor list: ~w~n", [WatcherID, NewL]),
