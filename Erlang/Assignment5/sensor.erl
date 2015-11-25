@@ -20,7 +20,8 @@ sensor_loop(Watcher, SensorID) ->
     timer:sleep(Sleep_time),
     if
         Measurement == 11 ->
-            exit({SensorID, anomalous_reading});
+            %%exit({SensorID, anomalous_reading});
+            exit(anomalous_reading);
         true ->
             Watcher ! {SensorID, Measurement}
     end,
