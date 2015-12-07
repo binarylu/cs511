@@ -1,0 +1,1 @@
+erigone.exe -g -dm 2a.pml

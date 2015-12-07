@@ -1,0 +1,1 @@
+erigone.exe -s -lt100000 4a.pml
